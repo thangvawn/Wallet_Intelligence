@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CT Wallet Intelligence · Label Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=13">
+      <script src="app.js?v=27" defer></script>
+      <script src="cohort.js?v=7" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">CT</span>
+      <div>
+        <h1>Wallet Intelligence</h1>
+        <p class="subtitle">Một địa chỉ → dữ liệu → kiểm định → label có audit trail</p>
+      </div>
+    </div>
+    <form id="address-form" class="address-form" autocomplete="off">
+      <label for="address-input" class="sr-only">Địa chỉ ví Solana</label>
+      <input id="address-input" type="text" spellcheck="false" placeholder="Nhập địa chỉ ví Solana…">
+      <button type="submit" class="btn-ghost">Xem snapshot</button>
+      <button type="button" id="create-label-btn" class="btn-primary">Xuất label từ DB</button>
+    </form>
+    <div class="topbar-meta">
+      <button type="button" id="export-json-btn" class="btn-ghost" title="Tính lại và tải label của toàn bộ cohort">Tải toàn bộ · JSON ↓</button>
+      <button type="button" id="export-csv-btn" class="btn-ghost" title="Tính lại và tải summary của toàn bộ cohort">Tải toàn bộ · CSV ↓</button>
+      <span id="status-pill" class="pill" role="status" aria-live="polite">Nhập địa chỉ ví</span>
+    </div>
+  </header>
+
+  <section id="cohort-monitor" class="cohort-monitor" aria-labelledby="cohort-title">
+    <div class="cohort-monitor-head">
+      <div>
+        <span class="hero-kicker">COHORT MONITOR · LIVE SNAPSHOT</span>
+        <h2 id="cohort-title">Theo dõi 192 wallet</h2>
+        <p class="cohort-subtitle">Di chuột hoặc tab vào một wallet để xem label nhanh. Chọn một dòng để mở toàn bộ feature, ngưỡng và chi tiết G1–G4 bên dưới.</p>
+      </div>
+      <div class="cohort-actions">
+        <span id="cohort-updated" class="pill">Đang tải cohort…</span>
+        <button id="cohort-refresh-btn" type="button" class="btn-ghost">Cập nhật danh sách</button>
+      </div>
+    </div>
+
+    <div class="cohort-toolbar" role="search">
+      <label class="cohort-search-label" for="cohort-search">Tìm wallet</label>
+      <input id="cohort-search" class="cohort-search" type="search" placeholder="Tên, địa chỉ hoặc emoji…" autocomplete="off">
+      <label class="cohort-select-label" for="cohort-rank-filter">Rank</label>
+      <select id="cohort-rank-filter" class="toolbar-select">
+        <option value="">Tất cả rank</option>
+        <option value="S">S</option><option value="A">A</option><option value="B">B</option>
+        <option value="C">C</option><option value="D">D</option>
+      </select>
+      <label class="cohort-select-label" for="cohort-group-filter">Group</label>
+      <select id="cohort-group-filter" class="toolbar-select">
+        <option value="">Tất cả group</option>
+        <option value="G1">Early Microcap Specialist</option>
+        <option value="G2">Whale Conviction</option>
+        <option value="G3">Narrative Basket</option>
+        <option value="G4">Unicon Holder</option>
+      </select>
+    </div>
+
+    <div class="cohort-layout">
+      <article class="cohort-table-card">
+        <div class="cohort-table-wrap">
+          <table id="cohort-table">
+            <thead>
+              <tr>
+                <th scope="col">Wallet</th>
+                <th scope="col">Rank / profile</th>
+                <th scope="col">Group</th>
+                <th scope="col">Data</th>
+                <th scope="col">Cập nhật</th>
+              </tr>
+            </thead>
+            <tbody id="cohort-tbody">
+              <tr><td colspan="5" class="empty">Đang đọc canonical wallet index…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="cohort-foot" class="table-foot">—</p>
+      </article>
+
+      <aside id="cohort-hover-card" class="cohort-hover-card" aria-live="polite">
+        <span class="eyebrow">LABEL PREVIEW</span>
+        <div id="cohort-hover-empty" class="cohort-hover-empty">Di chuột hoặc tab vào một dòng để xem rank, group và tín hiệu chính.</div>
+        <div id="cohort-hover-content" class="hidden"></div>
+      </aside>
+    </div>
+
+    <article id="cohort-detail-panel" class="cohort-detail-panel hidden" aria-live="polite" aria-labelledby="cohort-detail-title">
+      <div class="cohort-detail-head">
+        <div>
+          <span class="hero-kicker">LABEL DETAIL · SELECTED WALLET</span>
+          <h3 id="cohort-detail-title">—</h3>
+          <p id="cohort-detail-address" class="mono">—</p>
+        </div>
+        <button id="cohort-open-wallet" type="button" class="btn-ghost">Mở snapshot wallet</button>
+      </div>
+      <div id="cohort-group-detail" class="cohort-group-detail"></div>
+      <div class="cohort-feature-heading">
+        <div><h4>Feature → ngưỡng → label cuối cùng</h4><p>Giá trị lấy từ canonical label inputs hiện tại. Dữ liệu thiếu được giữ là “Chưa đủ dữ liệu”.</p></div>
+        <span id="cohort-detail-status" class="status-badge">—</span>
+      </div>
+      <div class="cohort-feature-table-wrap">
+        <table class="cohort-feature-table">
+          <thead><tr><th scope="col">Feature</th><th scope="col">Giá trị</th><th scope="col">Label cuối cùng</th><th scope="col">Ngưỡng áp dụng</th></tr></thead>
+          <tbody id="cohort-feature-tbody"></tbody>
+        </table>
+      </div>
+    </article>
+    <div id="cohort-tooltip" class="cohort-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+  </section>
+
+  <section id="wallet-board" class="board hidden">
+    <div class="wallet-line">
+      <div>
+        <h2 id="wallet-title">—</h2>
+        <p id="wallet-address" class="mono"></p>
+      </div>
+      <a id="gmgn-link" class="btn-ghost" href="#" target="_blank" rel="noopener">Mở GMGN ↗</a>
+    </div>
+
+    <section id="label-workspace" class="label-workspace">
+      <div class="label-head">
+        <div>
+          <span class="hero-kicker">DETERMINISTIC LABEL</span>
+          <h3>Kết quả phân loại wallet</h3>
+          <p id="label-helper">Label luôn dùng snapshot SQLite hiện có; dữ liệu provider được cập nhật riêng ở nền.</p>
+        </div>
+        <div id="label-actions" class="label-actions hidden">
+          <span id="database-update-status" class="status-badge">DB IDLE</span>
+          <button id="download-label-json" type="button" class="btn-ghost">Tải ví này · JSON</button>
+          <button id="download-label-csv" type="button" class="btn-ghost">Tải ví này · CSV</button>
+        </div>
+      </div>
+
+      <div id="label-progress" class="label-progress" aria-label="Tiến trình pipeline">
+        <div data-step="collect"><span>01</span><b>Đọc snapshot</b><small>SQLite hiện có</small></div>
+        <div data-step="validate"><span>02</span><b>Kiểm định</b><small>Đủ và mới</small></div>
+        <div data-step="score"><span>03</span><b>Chấm điểm</b><small>Feature + rank</small></div>
+        <div data-step="label"><span>04</span><b>Xuất label</b><small>Conviction + clan</small></div>
+      </div>
+
+      <div id="label-status" class="label-status" role="status" aria-live="polite">
+        Chưa chạy pipeline cho wallet này.
+      </div>
+
+      <div id="label-result" class="label-result hidden">
+        <article id="rank-card" class="rank-card">
+          <div>
+            <span class="eyebrow">Wallet rank</span>
+            <strong id="label-rank">—</strong>
+          </div>
+          <div class="rank-copy">
+            <span id="label-rank-status" class="status-badge">—</span>
+            <b id="label-wallet-name">—</b>
+            <code id="label-address">—</code>
+            <small id="label-rank-rule">—</small>
+          </div>
+        </article>
+
+        <div id="label-metrics" class="label-metrics"></div>
+
+        <div class="label-detail-grid">
+          <article class="label-panel">
+            <div class="panel-title-row">
+              <h4>Độ tin cậy dữ liệu</h4>
+              <span id="data-status-badge" class="status-badge">—</span>
+            </div>
+            <div id="data-checks" class="data-checks"></div>
+          </article>
+          <article class="label-panel">
+            <h4>Conviction & Clan</h4>
+            <dl id="label-behavior" class="label-definition"></dl>
+          </article>
+          <article class="label-panel">
+            <h4>Giới hạn cần lưu ý</h4>
+            <ul id="label-limitations" class="limitation-list"></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <div id="summary-strip" class="summary-strip"></div>
+    <div id="analysis-strip" class="analysis-strip"></div>
+
+    <section class="period-analytics">
+      <div class="period-head">
+        <h3>Thống kê hiệu suất</h3>
+        <div id="period-tabs" class="period-tabs">
+          <button type="button" data-period="1d">Ngày</button>
+          <button type="button" data-period="7d">Tuần</button>
+          <button type="button" data-period="30d">Tháng</button>
+          <button type="button" data-period="all" class="active">Toàn kỳ</button>
+          <button type="button" data-period="1y" disabled title="GMGN API không hỗ trợ 1 năm">Năm</button>
+        </div>
+      </div>
+      <div class="analytics-grid">
+        <article class="analytics-card pnl-period-card">
+          <span id="period-label" class="eyebrow">All-time Realized PnL</span>
+          <strong id="period-roi" class="hero-number">—</strong>
+          <span id="period-profit" class="period-profit">—</span>
+          <div class="mini-metrics">
+            <span>Total PnL <b id="period-total">—</b></span>
+            <span>Unrealized <b id="period-unrealized">—</b></span>
+          </div>
+        </article>
+        <article class="analytics-card calendar-card">
+          <span id="calendar-source" class="eyebrow">PNL Calendar</span>
+          <div class="calendar-head">
+            <button id="calendar-prev" type="button" aria-label="Tháng trước">‹</button>
+            <span id="calendar-title">—</span>
+            <button id="calendar-next" type="button" aria-label="Tháng sau">›</button>
+          </div>
+          <div class="calendar-weekdays">
+            <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+          </div>
+          <div id="pnl-calendar" class="pnl-calendar"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Analysis</span>
+          <dl id="period-analysis" class="analysis-list"></dl>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Distribution</span>
+          <div id="return-distribution" class="distribution-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Phishing check</span>
+          <div id="safety-check" class="safety-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Avg Buy MC Distribution</span>
+          <div id="mc-distribution" class="distribution-list"></div>
+        </article>
+      </div>
+      <p id="period-note" class="period-note"></p>
+    </section>
+
+    <section class="intraday-analytics wallet-analysis">
+      <div class="period-head">
+        <div>
+          <h3>Kết quả phân tích thống kê wallet</h3>
+          <p class="section-subtitle">4 lớp label từ snapshot SQLite: hiệu suất lịch sử, hành vi giao dịch, predictive, chất lượng dữ liệu</p>
+        </div>
+        <span id="analysis-source" class="pill">Database</span>
+      </div>
+      <div id="wallet-analysis-status" class="intraday-status">Đang phân tích dữ liệu trong database…</div>
+      <div id="wallet-analysis-summary" class="summary-strip"></div>
+      <div id="wallet-analysis-grid" class="analysis-result-grid hidden">
+        <article class="analytics-card">
+          <span class="eyebrow">Giá trị thông tin</span>
+          <div id="analysis-quality" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Hiệu suất thực tế</span>
+          <div id="analysis-performance" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Setup và vùng vào lệnh</span>
+          <div id="analysis-setup" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Conviction / Buy size</span>
+          <div id="analysis-conviction" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Thời điểm và rủi ro</span>
+          <div id="analysis-timing" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Khả năng sử dụng dữ liệu</span>
+          <div id="analysis-data-quality" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Thói quen vào / thoát</span>
+          <div id="analysis-behavior" class="analysis-detail-list"></div>
+        </article>
+        <article class="analytics-card">
+          <span class="eyebrow">Tập trung & transfer</span>
+          <div id="analysis-structure" class="analysis-detail-list"></div>
+        </article>
+      </div>
+      <p id="wallet-analysis-note" class="period-note"></p>
+    </section>
+
+    <div class="gmgn-toolbar">
+      <div class="tabs">
+        <span class="tab on">Recent PnL</span>
+      </div>
+      <input id="token-search" type="search" placeholder="Please enter token CA" class="ca-search">
+      <label class="check"><input type="checkbox" id="hide-didnt-buy" checked> Hide Didn't Buy</label>
+      <label class="check"><input type="checkbox" id="hide-tiny-pool"> Hide Tiny Pool</label>
+      <label class="check"><input type="checkbox" id="hide-honeypot"> Hide Honeypot</label>
+      <label class="check"><input type="checkbox" id="hide-closed"> Hide Closed</label>
+      <select id="sort-by" class="toolbar-select">
+        <option value="total_profit_usd">Total Profit</option>
+        <option value="realized_profit_usd">Realized Profit</option>
+        <option value="unrealized_profit_usd">Unrealized</option>
+        <option value="bought_usd">Bought USD</option>
+        <option value="last_active_timestamp">Last Active</option>
+      </select>
+    </div>
+
+    <div class="table-card">
+      <div class="table-wrap">
+        <table id="pnl-table">
+          <thead>
+            <tr>
+              <th>Token / Last Active</th>
+              <th>Unrealized</th>
+              <th>Realized Profit</th>
+              <th>Total Profit</th>
+              <th>Balance / USD</th>
+              <th>Position %</th>
+              <th>Holding Duration</th>
+              <th>Bought / MC</th>
+              <th>Sold / MC</th>
+              <th>Txs</th>
+            </tr>
+          </thead>
+          <tbody id="pnl-tbody"></tbody>
+        </table>
+      </div>
+      <p id="table-foot" class="table-foot"></p>
+    </div>
+
+    <div id="token-breakdown" class="breakdown">
+      <div class="panel">
+        <h3>Top coin lãi</h3>
+        <ul id="top-winners"></ul>
+      </div>
+      <div class="panel">
+        <h3>Top coin lỗ</h3>
+        <ul id="top-losers"></ul>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

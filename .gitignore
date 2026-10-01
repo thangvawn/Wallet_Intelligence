@@ -1,0 +1,8 @@
+.env
+.tools/
+data/*.sqlite3*
+data/wallet_portfolio_pnl.sqlite3*
+data/sync_progress.json
+data/portfolio_pnl/
+__pycache__/
+.pytest_cache/
